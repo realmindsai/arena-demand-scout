@@ -5,17 +5,20 @@ function demandScout() {
         loading: true,
         selectedStates: [],
         allStates: [],
+        mapStateFilter: 'ALL',
 
         tabs: [
             { id: 'portfolio', label: 'Portfolio Overview' },
             { id: 'forecast', label: 'Demand Forecast' },
             { id: 'opportunity', label: 'Opportunity Scoring' },
-            { id: 'map', label: 'Map' },
+            { id: 'map', label: 'Suburb Map' },
         ],
 
         portfolio: null,
         projections: null,
         scores: null,
+        sa2Boundaries: null,
+        sa2Scores: null,
 
         get stateEntries() {
             if (!this.portfolio?.states) return [];
@@ -23,16 +26,29 @@ function demandScout() {
                 .sort((a, b) => b[1].centres - a[1].centres);
         },
 
+        get topSa2() {
+            if (!this.sa2Scores?.sa2_scores) return [];
+            let filtered = this.sa2Scores.sa2_scores;
+            if (this.mapStateFilter && this.mapStateFilter !== 'ALL') {
+                filtered = filtered.filter(s => s.state_abbr === this.mapStateFilter);
+            }
+            return filtered.slice(0, 20);
+        },
+
         async init() {
             try {
-                const [portfolioRes, projectionsRes, scoresRes] = await Promise.all([
+                const [portfolioRes, projectionsRes, scoresRes, sa2BoundariesRes, sa2ScoresRes] = await Promise.all([
                     fetch('data/arena_portfolio.json').then(r => r.json()),
                     fetch('data/abs_projections.json').then(r => r.json()),
                     fetch('data/opportunity_scores.json').then(r => r.json()),
+                    fetch('data/sa2_boundaries.geojson').then(r => r.json()),
+                    fetch('data/sa2_scores.json').then(r => r.json()),
                 ]);
                 this.portfolio = portfolioRes;
                 this.projections = projectionsRes;
                 this.scores = scoresRes;
+                this.sa2Boundaries = sa2BoundariesRes;
+                this.sa2Scores = sa2ScoresRes;
 
                 this.allStates = Object.keys(this.projections.states);
                 this.selectedStates = [...this.allStates];
@@ -52,6 +68,11 @@ function demandScout() {
 
         setSeries(series) {
             this.activeSeries = series;
+            this.$nextTick(() => this.renderTab());
+        },
+
+        setMapState(state) {
+            this.mapStateFilter = state;
             this.$nextTick(() => this.renderTab());
         },
 
@@ -95,7 +116,9 @@ function demandScout() {
                     if (this.scores) renderScatterChart(this.scores);
                     break;
                 case 'map':
-                    if (this.scores) initMap(this.scores);
+                    if (this.sa2Boundaries && this.sa2Scores) {
+                        initSa2Map(this.sa2Boundaries, this.sa2Scores, this.mapStateFilter);
+                    }
                     break;
             }
         },

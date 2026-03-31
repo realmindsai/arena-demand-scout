@@ -32,3 +32,16 @@ def test_build_creates_all_output_files_when_abs_cached(tmp_path):
     assert (output_dir / "arena_portfolio.json").exists()
     assert (output_dir / "abs_projections.json").exists()
     assert (output_dir / "opportunity_scores.json").exists()
+    assert (output_dir / "sa2_boundaries.geojson").exists()
+    assert (output_dir / "sa2_scores.json").exists()
+
+    # Verify SA2 scores structure
+    sa2_scores = json.loads((output_dir / "sa2_scores.json").read_text())
+    assert sa2_scores["total_sa2_regions"] > 2000
+
+    # Verify SA2 boundaries has features with merged population
+    sa2_geo = json.loads((output_dir / "sa2_boundaries.geojson").read_text())
+    assert len(sa2_geo["features"]) > 2000
+    sample = sa2_geo["features"][0]["properties"]
+    assert "pop_0_4" in sample
+    assert "children_per_sqkm" in sample

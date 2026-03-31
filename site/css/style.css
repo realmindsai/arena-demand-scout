@@ -4,10 +4,9 @@
 .score-medium { background-color: #d97706; }
 .score-low { background-color: #dc2626; }
 
-#map-container .leaflet-container {
-    height: 100%;
-    width: 100%;
+#map-container {
     border-radius: 0.5rem;
+    overflow: hidden;
 }
 
 #chart-donut, #chart-forecast, #chart-scatter {

@@ -109,11 +109,23 @@ def test_opportunity_tab_shows_table_and_chart(page):
 
 
 def test_map_tab_renders(page):
-    page.locator("nav button", has_text="Map").click()
-    page.wait_for_timeout(1000)
+    page.locator("nav button", has_text="Suburb Map").click()
+    page.wait_for_timeout(2000)
     # Leaflet adds leaflet-container class directly to #map-container, not a child
     map_el = page.locator("#map-container.leaflet-container")
     assert map_el.is_visible()
+
+
+def test_map_state_filter(page):
+    page.locator("nav button", has_text="Suburb Map").click()
+    page.wait_for_timeout(1000)
+    # Click VIC filter
+    page.locator("section button", has_text="VIC").click()
+    page.wait_for_timeout(1000)
+    # Top Demand Areas heading should show (VIC)
+    heading = page.locator("h3", has_text="Top Demand Areas")
+    assert heading.is_visible()
+    assert "(VIC)" in heading.text_content()
 
 
 def test_series_toggle_updates_charts(page):

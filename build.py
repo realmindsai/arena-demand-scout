@@ -7,6 +7,8 @@ from pathlib import Path
 from src.scrape_arena import load_arena_portfolio
 from src.fetch_abs import download_projection_tables, build_projections_json
 from src.compute_scores import compute_opportunity_scores
+from src.fetch_sa2 import build_sa2_data
+from src.compute_sa2_scores import compute_sa2_scores
 
 DEFAULT_OUTPUT_DIR = Path("site/data")
 
@@ -40,6 +42,16 @@ def run_build(
     scores = compute_opportunity_scores(portfolio, projections)
     (out / "opportunity_scores.json").write_text(json.dumps(scores, indent=2))
     print(f"  Wrote opportunity_scores.json ({len(scores['rankings'])} rankings)")
+
+    print("Building SA2-level data...")
+    merged_geojson, sa2_population = build_sa2_data(cache_dir=cache_dir)
+    (out / "sa2_boundaries.geojson").write_text(json.dumps(merged_geojson))
+    print(f"  Wrote sa2_boundaries.geojson ({len(merged_geojson['features'])} features)")
+
+    print("Computing SA2 scores...")
+    sa2_scores = compute_sa2_scores(merged_geojson)
+    (out / "sa2_scores.json").write_text(json.dumps(sa2_scores))
+    print(f"  Wrote sa2_scores.json ({sa2_scores['total_sa2_regions']} SA2 regions)")
 
     print("Build complete.")
 
