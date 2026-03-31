@@ -222,6 +222,7 @@ function renderPortfolioBalance(stateMarket) {
 
     const layout = {
         ...PLOTLY_LAYOUT_BASE,
+        height: 400,
         title: { text: 'Portfolio Balance: Children vs Arena Centres', font: { size: 14 } },
         barmode: 'group',
         xaxis: { title: '% of National Total', ticksuffix: '%', gridcolor: '#e2e8f0' },
@@ -265,6 +266,7 @@ function renderSupplyTrajectory(projections, activeSeries, stateMarket) {
 
     const layout = {
         ...PLOTLY_LAYOUT_BASE,
+        height: 400,
         title: { text: 'Places per Child Trajectory (Supply Held Constant)', font: { size: 14 } },
         xaxis: { title: '', dtick: 2, gridcolor: '#e2e8f0' },
         yaxis: { title: 'Approved Places / Child 0\u20135', gridcolor: '#e2e8f0' },
