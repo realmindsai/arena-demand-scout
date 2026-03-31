@@ -1,0 +1,15 @@
+[x-cloak] { display: none !important; }
+
+.score-high { background-color: #059669; }
+.score-medium { background-color: #d97706; }
+.score-low { background-color: #dc2626; }
+
+#map-container .leaflet-container {
+    height: 100%;
+    width: 100%;
+    border-radius: 0.5rem;
+}
+
+#chart-donut, #chart-forecast, #chart-scatter {
+    min-height: 400px;
+}
