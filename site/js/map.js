@@ -65,6 +65,8 @@ function initSa2Map(geojsonData, sa2Scores, stateFilter) {
             const places = entry.approved_places || props.approved_places || 0;
             const ppc = entry.places_per_child || props.places_per_child || 0;
             const catchmentPpc = entry.catchment_ppc || props.catchment_ppc || 0;
+            const ldc = entry.long_day_care || props.long_day_care || 0;
+            const fdc = entry.family_day_care || props.family_day_care || 0;
 
             layer.bindPopup(`
                 <div class="text-sm" style="min-width: 240px">
@@ -76,9 +78,9 @@ function initSa2Map(geojsonData, sa2Scores, stateFilter) {
                     <p>Density: ${density.toFixed(1)} per km&sup2;</p>
                     <hr class="my-1">
                     <p><strong>Supply</strong></p>
-                    <p>Childcare centres: <strong>${centres}</strong></p>
+                    <p>Centre-based care: <strong>${centres}</strong> (${ldc} long day care)</p>
+                    <p>Family day care: <strong>${fdc}</strong></p>
                     <p>Approved places: <strong>${places.toLocaleString()}</strong></p>
-                    <p>Raw places/child: ${ppc.toFixed(2)}</p>
                     <p>Catchment places/child (2SFCA): <strong>${catchmentPpc.toFixed(3)}</strong></p>
                     <hr class="my-1">
                     <p>Opportunity Score: <strong style="color: ${demandScoreColor(score)}">${score}</strong> &mdash; ${verdict}</p>

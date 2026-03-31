@@ -30,6 +30,8 @@ def compute_sa2_scores(merged_geojson: dict) -> dict:
         approved_places = props.get("approved_places", 0)
         places_per_child = props.get("places_per_child", 0)
         catchment_ppc = props.get("catchment_ppc", 0)
+        family_day_care = props.get("family_day_care", 0)
+        long_day_care = props.get("long_day_care", 0)
 
         entries.append({
             "sa2_code": str(props.get("sa2_code_2021", "")),
@@ -39,6 +41,8 @@ def compute_sa2_scores(merged_geojson: dict) -> dict:
             "children_per_sqkm": density,
             "centre_count": centre_count,
             "approved_places": approved_places,
+            "long_day_care": long_day_care,
+            "family_day_care": family_day_care,
             "places_per_child": places_per_child,
             "catchment_ppc": catchment_ppc,
         })

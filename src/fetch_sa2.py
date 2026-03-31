@@ -26,7 +26,7 @@ ARCGIS_SA2_URL = (
     "https://geo.abs.gov.au/arcgis/rest/services/ASGS2021/SA2/MapServer/0/query"
 )
 ARCGIS_PAGE_SIZE = 2000
-ARCGIS_SIMPLIFY_OFFSET = 0.01  # ~1km simplification
+ARCGIS_SIMPLIFY_OFFSET = 0.002  # ~200m simplification (inner suburbs need detail)
 
 STATE_CODE_TO_ABBR = {
     "1": "NSW", "2": "VIC", "3": "QLD", "4": "SA",
@@ -146,7 +146,7 @@ def merge_population_into_geojson(geojson: dict, population: dict, supply: dict 
     """Merge SA2 population and supply data into GeoJSON feature properties.
 
     Adds: pop_0_4, state_abbr, children_per_sqkm, centre_count, approved_places,
-          long_day_care, places_per_child
+          long_day_care, family_day_care, places_per_child
     """
     supply = supply or {}
 
@@ -170,11 +170,13 @@ def merge_population_into_geojson(geojson: dict, population: dict, supply: dict 
         centre_count = supply_entry.get("centre_count", 0)
         approved_places = supply_entry.get("approved_places", 0)
         long_day_care = supply_entry.get("long_day_care", 0)
+        family_day_care = supply_entry.get("family_day_care", 0)
         places_per_child = round(approved_places / pop_0_4, 2) if pop_0_4 > 0 else 0
 
         props["centre_count"] = centre_count
         props["approved_places"] = approved_places
         props["long_day_care"] = long_day_care
+        props["family_day_care"] = family_day_care
         props["places_per_child"] = places_per_child
 
     return geojson
