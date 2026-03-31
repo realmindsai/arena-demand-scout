@@ -8,10 +8,7 @@ from pathlib import Path
 CACHE_DIR = Path(".abs_cache")
 
 SA2_XLSX_FILENAME = "32350DS0001_2024.xlsx"
-SA2_XLSX_URL = (
-    "https://www.abs.gov.au/statistics/people/population/"
-    "regional-population-age-sex/2024/32350DS0001_2024.xlsx"
-)
+SA2_POPULATION_SOURCE = Path(__file__).parent / "data" / "sa2_population_source.json"
 
 # XLSX structure (Table 3 — Persons)
 SA2_XLSX_SHEET = "Table 3"
@@ -35,17 +32,17 @@ STATE_CODE_TO_ABBR = {
 }
 
 
-def download_sa2_xlsx(cache_dir: Path | None = None) -> Path:
-    """Download SA2 population XLSX if not cached."""
+def load_sa2_population(cache_dir: Path | None = None) -> dict:
+    """Load SA2 population data — from XLSX if cached, else from committed JSON.
+
+    Prefers cached XLSX (local dev) but falls back to committed
+    src/data/sa2_population_source.json for CI where the XLSX isn't available.
+    """
     cache = cache_dir or CACHE_DIR
-    dest = cache / SA2_XLSX_FILENAME
-    if dest.exists():
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    resp = httpx.get(SA2_XLSX_URL, follow_redirects=True, timeout=60)
-    resp.raise_for_status()
-    dest.write_bytes(resp.content)
-    return dest
+    xlsx_path = cache / SA2_XLSX_FILENAME
+    if xlsx_path.exists():
+        return parse_sa2_population_xlsx(xlsx_path)
+    return json.loads(SA2_POPULATION_SOURCE.read_text())
 
 
 def parse_sa2_population_xlsx(xlsx_path: Path) -> dict:
@@ -165,11 +162,8 @@ def build_sa2_data(cache_dir: Path | None = None) -> tuple[dict, dict]:
     """
     cache = cache_dir or CACHE_DIR
 
-    print("Downloading SA2 population XLSX...")
-    xlsx_path = download_sa2_xlsx(cache_dir=cache)
-
-    print("Parsing SA2 population data...")
-    population = parse_sa2_population_xlsx(xlsx_path)
+    print("Loading SA2 population data...")
+    population = load_sa2_population(cache_dir=cache)
     print(f"  Found {len(population)} SA2 regions")
 
     print("Fetching SA2 boundaries from ABS ArcGIS...")
