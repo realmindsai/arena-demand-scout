@@ -62,9 +62,9 @@ def test_header_visible(page):
     assert "Arena Demand Scout" in header.text_content()
 
 
-def test_four_tabs_present(page):
+def test_five_tabs_present(page):
     tabs = page.locator("nav button")
-    assert tabs.count() == 4
+    assert tabs.count() == 5
 
 
 def test_portfolio_tab_shows_table(page):
@@ -101,7 +101,7 @@ def test_opportunity_tab_shows_table_and_chart(page):
     page.locator("nav button", has_text="Opportunity Scoring").click()
     page.wait_for_timeout(500)
     # Use the opportunity section directly to avoid matching the hidden portfolio table
-    table = page.locator("section").nth(2).locator("table")
+    table = page.locator("section").nth(3).locator("table")
     # Plotly appends js-plotly-plot to the container div; .plot-container has zero height
     chart = page.locator("#chart-scatter.js-plotly-plot")
     assert table.first.is_visible()
@@ -119,13 +119,22 @@ def test_map_tab_renders(page):
 def test_map_state_filter(page):
     page.locator("nav button", has_text="Suburb Map").click()
     page.wait_for_timeout(1000)
-    # Click VIC filter
-    page.locator("section button", has_text="VIC").click()
+    # Click VIC filter (use first match — map tab's state filter)
+    page.locator("section button", has_text="VIC").first.click()
     page.wait_for_timeout(1000)
     # Top Demand Areas heading should show (VIC)
     heading = page.locator("h3", has_text="Top Demand Areas")
     assert heading.is_visible()
     assert "(VIC)" in heading.text_content()
+
+
+def test_methodology_tab_shows_content(page):
+    page.locator("nav button", has_text="Methodology").click()
+    page.wait_for_timeout(500)
+    heading = page.locator("h2", has_text="Two-Step Floating Catchment")
+    assert heading.is_visible()
+    data_sources = page.locator("h2", has_text="Data Sources")
+    assert data_sources.is_visible()
 
 
 def test_series_toggle_updates_charts(page):

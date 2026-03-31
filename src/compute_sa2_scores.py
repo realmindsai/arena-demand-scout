@@ -29,6 +29,7 @@ def compute_sa2_scores(merged_geojson: dict) -> dict:
         centre_count = props.get("centre_count", 0)
         approved_places = props.get("approved_places", 0)
         places_per_child = props.get("places_per_child", 0)
+        catchment_ppc = props.get("catchment_ppc", 0)
 
         entries.append({
             "sa2_code": str(props.get("sa2_code_2021", "")),
@@ -39,6 +40,7 @@ def compute_sa2_scores(merged_geojson: dict) -> dict:
             "centre_count": centre_count,
             "approved_places": approved_places,
             "places_per_child": places_per_child,
+            "catchment_ppc": catchment_ppc,
         })
 
     if not entries:
@@ -49,8 +51,9 @@ def compute_sa2_scores(merged_geojson: dict) -> dict:
     # Compute percentile ranks
     density_sorted = sorted(range(n), key=lambda i: entries[i]["children_per_sqkm"])
     pop_sorted = sorted(range(n), key=lambda i: entries[i]["pop_0_4"])
-    # Supply gap: lower places_per_child = higher opportunity (inverted rank)
-    supply_sorted = sorted(range(n), key=lambda i: entries[i]["places_per_child"], reverse=True)
+    # Supply gap: lower catchment_ppc = higher opportunity (inverted rank)
+    # Uses 2SFCA catchment-aware accessibility, not raw SA2-level counts
+    supply_sorted = sorted(range(n), key=lambda i: entries[i]["catchment_ppc"], reverse=True)
 
     density_rank = [0] * n
     pop_rank = [0] * n

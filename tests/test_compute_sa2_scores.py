@@ -24,6 +24,7 @@ class TestComputeSa2Scores:
                         "centre_count": 1,
                         "approved_places": 50,
                         "places_per_child": 0.25,
+                        "catchment_ppc": 0.20,
                     },
                     "geometry": {"type": "Polygon", "coordinates": [[[149, -35], [150, -35], [150, -36], [149, -35]]]},
                 },
@@ -40,6 +41,7 @@ class TestComputeSa2Scores:
                         "centre_count": 2,
                         "approved_places": 100,
                         "places_per_child": 0.13,
+                        "catchment_ppc": 0.08,
                     },
                     "geometry": {"type": "Polygon", "coordinates": [[[144, -37], [145, -37], [145, -38], [144, -37]]]},
                 },
@@ -56,6 +58,7 @@ class TestComputeSa2Scores:
                         "centre_count": 5,
                         "approved_places": 200,
                         "places_per_child": 0.40,
+                        "catchment_ppc": 0.35,
                     },
                     "geometry": {"type": "Polygon", "coordinates": [[[153, -27], [154, -27], [154, -28], [153, -27]]]},
                 },
@@ -86,7 +89,8 @@ class TestComputeSa2Scores:
     def test_has_required_fields(self, sample_geojson):
         result = compute_sa2_scores(sample_geojson)
         required = {"sa2_code", "sa2_name", "state_abbr", "pop_0_4", "children_per_sqkm",
-                     "centre_count", "approved_places", "places_per_child", "demand_score", "verdict"}
+                     "centre_count", "approved_places", "places_per_child", "catchment_ppc",
+                     "demand_score", "verdict"}
         for entry in result["sa2_scores"]:
             assert required.issubset(entry.keys()), f"Missing: {required - entry.keys()}"
 

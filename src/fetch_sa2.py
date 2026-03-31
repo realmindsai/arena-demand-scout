@@ -1,6 +1,7 @@
 """Fetch and parse SA2-level population data and boundaries."""
 
 import json
+import math
 import httpx
 import openpyxl
 from pathlib import Path
@@ -179,6 +180,136 @@ def merge_population_into_geojson(geojson: dict, population: dict, supply: dict 
     return geojson
 
 
+CATCHMENT_RADIUS_KM = 5.0  # ~15 min drive in urban areas
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in km between two lat/lon points."""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+         * math.sin(dlon / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def compute_centroids(geojson: dict) -> dict:
+    """Compute centroid (avg lat/lon) for each SA2 polygon.
+
+    Returns: {sa2_code: (lat, lon)}
+    """
+    centroids = {}
+    for feature in geojson["features"]:
+        sa2_code = str(feature["properties"].get("sa2_code_2021", ""))
+        geom = feature.get("geometry")
+        if not geom:
+            continue
+        coords = geom.get("coordinates", [])
+
+        all_points = []
+        if geom["type"] == "MultiPolygon":
+            for polygon in coords:
+                for ring in polygon:
+                    all_points.extend(ring)
+        elif geom["type"] == "Polygon":
+            for ring in coords:
+                all_points.extend(ring)
+
+        if all_points:
+            avg_lon = sum(p[0] for p in all_points) / len(all_points)
+            avg_lat = sum(p[1] for p in all_points) / len(all_points)
+            centroids[sa2_code] = (avg_lat, avg_lon)
+
+    return centroids
+
+
+def compute_catchment_accessibility(
+    centroids: dict,
+    supply: dict,
+    population: dict,
+    radius_km: float = CATCHMENT_RADIUS_KM,
+) -> dict:
+    """Simplified Two-Step Floating Catchment Area (2SFCA) method.
+
+    Step 1: For each SA2 with supply, compute supply-to-demand ratio
+            within the catchment radius (supply / nearby population).
+    Step 2: For each SA2, sum the supply ratios of all nearby supply
+            SA2s within the catchment — this is the accessibility index.
+
+    Uses Gaussian distance decay: w(d) = exp(-d²/β²) where β = radius/2.
+
+    Reference: Luo & Wang (2003), "Measures of spatial accessibility
+    to health care in a GIS environment"
+
+    Returns: {sa2_code: {"accessible_places": float, "catchment_ppc": float}}
+    """
+    beta = radius_km / 2.0
+    # Pre-filter: ~0.045° latitude per km at Australian latitudes
+    lat_thresh = radius_km / 111.0
+    lon_thresh = radius_km / 85.0  # ~85 km per degree longitude at -30°
+
+    sa2_codes = list(centroids.keys())
+
+    # Step 1: compute supply-to-demand ratio Rj for each supply SA2 j
+    supply_ratios = {}
+    supply_sa2s = [(code, supply[code]) for code in sa2_codes
+                   if code in supply and supply[code].get("approved_places", 0) > 0]
+
+    for code_j, supply_j in supply_sa2s:
+        if code_j not in centroids:
+            continue
+        lat_j, lon_j = centroids[code_j]
+        places_j = supply_j["approved_places"]
+
+        # Sum demand within catchment
+        catchment_demand = 0
+        for code_k in sa2_codes:
+            pop_k = population.get(code_k, {}).get("pop_0_4", 0)
+            if pop_k == 0:
+                continue
+            lat_k, lon_k = centroids.get(code_k, (0, 0))
+            if abs(lat_k - lat_j) > lat_thresh or abs(lon_k - lon_j) > lon_thresh:
+                continue
+            dist = haversine_km(lat_j, lon_j, lat_k, lon_k)
+            if dist <= radius_km:
+                weight = math.exp(-(dist ** 2) / (beta ** 2))
+                catchment_demand += pop_k * weight
+
+        if catchment_demand > 0:
+            supply_ratios[code_j] = places_j / catchment_demand
+        else:
+            supply_ratios[code_j] = 0
+
+    # Step 2: for each SA2, sum supply ratios within catchment
+    result = {}
+    for code_i in sa2_codes:
+        if code_i not in centroids:
+            result[code_i] = {"accessible_places": 0, "catchment_ppc": 0}
+            continue
+        lat_i, lon_i = centroids[code_i]
+        pop_i = population.get(code_i, {}).get("pop_0_4", 0)
+
+        accessibility = 0.0
+        for code_j, _ in supply_sa2s:
+            if code_j not in centroids or code_j not in supply_ratios:
+                continue
+            lat_j, lon_j = centroids[code_j]
+            if abs(lat_j - lat_i) > lat_thresh or abs(lon_j - lon_i) > lon_thresh:
+                continue
+            dist = haversine_km(lat_i, lon_i, lat_j, lon_j)
+            if dist <= radius_km:
+                weight = math.exp(-(dist ** 2) / (beta ** 2))
+                accessibility += supply_ratios[code_j] * weight
+
+        result[code_i] = {
+            "accessible_places": round(accessibility * pop_i, 1) if pop_i > 0 else 0,
+            "catchment_ppc": round(accessibility, 3),
+        }
+
+    return result
+
+
 def build_sa2_data(cache_dir: Path | None = None) -> tuple[dict, dict]:
     """Full SA2 pipeline: download XLSX, fetch boundaries, merge.
 
@@ -200,5 +331,16 @@ def build_sa2_data(cache_dir: Path | None = None) -> tuple[dict, dict]:
 
     print("Merging population + supply into boundaries...")
     merged = merge_population_into_geojson(geojson, population, supply)
+
+    print("Computing 2SFCA catchment accessibility (5km radius)...")
+    centroids = compute_centroids(merged)
+    catchment = compute_catchment_accessibility(centroids, supply, population)
+    # Merge catchment data into GeoJSON properties
+    for feature in merged["features"]:
+        sa2_code = str(feature["properties"].get("sa2_code_2021", ""))
+        ca = catchment.get(sa2_code, {})
+        feature["properties"]["accessible_places"] = ca.get("accessible_places", 0)
+        feature["properties"]["catchment_ppc"] = ca.get("catchment_ppc", 0)
+    print(f"  Computed catchment accessibility for {len(catchment)} SA2 regions")
 
     return merged, population

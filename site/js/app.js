@@ -9,9 +9,10 @@ function demandScout() {
 
         tabs: [
             { id: 'portfolio', label: 'Portfolio Overview' },
+            { id: 'map', label: 'Suburb Map' },
             { id: 'forecast', label: 'Demand Forecast' },
             { id: 'opportunity', label: 'Opportunity Scoring' },
-            { id: 'map', label: 'Suburb Map' },
+            { id: 'methodology', label: 'Methodology' },
         ],
 
         portfolio: null,

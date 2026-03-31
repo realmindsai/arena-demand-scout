@@ -7,6 +7,9 @@ from unittest.mock import patch, MagicMock
 from src.fetch_sa2 import (
     parse_sa2_population_xlsx,
     merge_population_into_geojson,
+    haversine_km,
+    compute_centroids,
+    compute_catchment_accessibility,
     SA2_XLSX_DATA_START_ROW,
     SA2_POP_0_4_COL,
     SA2_CODE_COL,
@@ -150,3 +153,84 @@ class TestMergePopulationIntoGeojson:
 
         alfredton = result["features"][1]["properties"]
         assert alfredton["children_per_sqkm"] == round(520 / 15.2, 2)
+
+
+class TestHaversineKm:
+    def test_zero_distance(self):
+        assert haversine_km(-33.87, 151.21, -33.87, 151.21) == 0.0
+
+    def test_sydney_to_melbourne(self):
+        dist = haversine_km(-33.87, 151.21, -37.81, 144.96)
+        assert 700 < dist < 900
+
+    def test_short_distance(self):
+        """Two points ~1km apart."""
+        dist = haversine_km(-33.87, 151.21, -33.879, 151.21)
+        assert 0.5 < dist < 2.0
+
+
+class TestComputeCentroids:
+    def test_computes_centroids(self, sample_sa2_geojson):
+        centroids = compute_centroids(sample_sa2_geojson)
+        assert "101021007" in centroids
+        assert "201011001" in centroids
+        lat, lon = centroids["101021007"]
+        assert -36 < lat < -34
+        assert 148 < lon < 150
+
+    def test_skips_null_geometry(self):
+        geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "properties": {"sa2_code_2021": "999"}, "geometry": None},
+            ],
+        }
+        centroids = compute_centroids(geojson)
+        assert "999" not in centroids
+
+
+class TestComputeCatchmentAccessibility:
+    @pytest.fixture
+    def nearby_setup(self):
+        """Two SA2s within 5km of each other, one with supply."""
+        centroids = {
+            "A": (-33.87, 151.21),
+            "B": (-33.88, 151.22),  # ~1.5km away
+        }
+        supply = {
+            "B": {"centre_count": 2, "approved_places": 100},
+        }
+        population = {
+            "A": {"pop_0_4": 500},
+            "B": {"pop_0_4": 300},
+        }
+        return centroids, supply, population
+
+    def test_nearby_sa2_gets_accessibility(self, nearby_setup):
+        centroids, supply, population = nearby_setup
+        result = compute_catchment_accessibility(centroids, supply, population, radius_km=5.0)
+        assert result["A"]["catchment_ppc"] > 0
+        assert result["B"]["catchment_ppc"] > 0
+
+    def test_supply_sa2_has_higher_accessibility(self, nearby_setup):
+        centroids, supply, population = nearby_setup
+        result = compute_catchment_accessibility(centroids, supply, population, radius_km=5.0)
+        assert result["B"]["catchment_ppc"] >= result["A"]["catchment_ppc"]
+
+    def test_distant_sa2_gets_zero(self):
+        centroids = {
+            "A": (-33.87, 151.21),
+            "B": (-37.81, 144.96),  # Melbourne — far away
+        }
+        supply = {"B": {"centre_count": 1, "approved_places": 50}}
+        population = {"A": {"pop_0_4": 500}, "B": {"pop_0_4": 300}}
+        result = compute_catchment_accessibility(centroids, supply, population, radius_km=5.0)
+        assert result["A"]["catchment_ppc"] == 0
+
+    def test_no_supply_gives_zero(self):
+        centroids = {"A": (-33.87, 151.21)}
+        supply = {}
+        population = {"A": {"pop_0_4": 500}}
+        result = compute_catchment_accessibility(centroids, supply, population, radius_km=5.0)
+        assert result["A"]["catchment_ppc"] == 0
+        assert result["A"]["accessible_places"] == 0

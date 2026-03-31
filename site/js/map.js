@@ -64,22 +64,24 @@ function initSa2Map(geojsonData, sa2Scores, stateFilter) {
             const centres = entry.centre_count || props.centre_count || 0;
             const places = entry.approved_places || props.approved_places || 0;
             const ppc = entry.places_per_child || props.places_per_child || 0;
+            const catchmentPpc = entry.catchment_ppc || props.catchment_ppc || 0;
 
             layer.bindPopup(`
-                <div class="text-sm" style="min-width: 220px">
+                <div class="text-sm" style="min-width: 240px">
                     <p class="font-bold text-base">${props.sa2_name_2021 || 'Unknown'}</p>
-                    <p class="text-gray-500">${props.state_abbr || ''}</p>
+                    <p class="text-gray-500">${props.state_abbr || ''} &middot; SA2 ${code}</p>
                     <hr class="my-1">
                     <p><strong>Demand</strong></p>
-                    <p>Children 0-4: <strong>${pop.toLocaleString()}</strong></p>
-                    <p>Density: ${density.toFixed(1)} per km²</p>
+                    <p>Children 0&ndash;4: <strong>${pop.toLocaleString()}</strong></p>
+                    <p>Density: ${density.toFixed(1)} per km&sup2;</p>
                     <hr class="my-1">
                     <p><strong>Supply</strong></p>
                     <p>Childcare centres: <strong>${centres}</strong></p>
                     <p>Approved places: <strong>${places.toLocaleString()}</strong></p>
-                    <p>Places per child: <strong>${ppc.toFixed(2)}</strong></p>
+                    <p>Raw places/child: ${ppc.toFixed(2)}</p>
+                    <p>Catchment places/child (2SFCA): <strong>${catchmentPpc.toFixed(3)}</strong></p>
                     <hr class="my-1">
-                    <p>Opportunity Score: <strong style="color: ${demandScoreColor(score)}">${score}</strong> — ${verdict}</p>
+                    <p>Opportunity Score: <strong style="color: ${demandScoreColor(score)}">${score}</strong> &mdash; ${verdict}</p>
                 </div>
             `);
 
