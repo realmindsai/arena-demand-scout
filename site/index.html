@@ -25,19 +25,7 @@
                     <span x-show="portfolio" x-text="'| Data as at ' + portfolio?.as_at" class="ml-2"></span>
                 </p>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-slate-400">Projection:</span>
-                <template x-for="s in ['series_a', 'series_b', 'series_c']" :key="s">
-                    <button
-                        :class="activeSeries === s
-                            ? 'bg-teal-500 text-white'
-                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'"
-                        class="px-3 py-1 rounded text-sm font-medium transition-colors"
-                        x-text="s === 'series_a' ? 'High' : s === 'series_b' ? 'Medium' : 'Low'"
-                        @click="setSeries(s)"
-                    ></button>
-                </template>
-            </div>
+            <div></div>
         </div>
     </header>
 
@@ -237,6 +225,16 @@
                     class="px-3 py-1 rounded text-sm transition-colors"
                     @click="forecastMode = 'absolute'; $nextTick(() => renderTab())"
                 >Absolute</button>
+                <span class="ml-4 text-sm font-medium text-slate-600">Projection:</span>
+                <template x-for="s in ['series_a', 'series_b', 'series_c']" :key="'proj-' + s">
+                    <button
+                        :class="activeSeries === s
+                            ? 'bg-teal-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'"
+                        class="px-3 py-1 rounded text-sm transition-colors"
+                        x-text="s === 'series_a' ? 'High' : s === 'series_b' ? 'Medium' : 'Low'"
+                        @click="setSeries(s)"
+                    ></button>
+                </template>
             </div>
 
             <!-- Charts row -->

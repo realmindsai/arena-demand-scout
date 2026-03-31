@@ -1,6 +1,6 @@
 function demandScout() {
     return {
-        activeTab: 'portfolio',
+        activeTab: 'map',
         activeSeries: 'series_b',
         loading: true,
         selectedStates: [],
@@ -9,9 +9,9 @@ function demandScout() {
         forecastMode: 'indexed',
 
         tabs: [
-            { id: 'portfolio', label: 'Portfolio Overview' },
             { id: 'map', label: 'Suburb Map' },
             { id: 'forecast', label: 'Demand Forecast' },
+            { id: 'portfolio', label: 'Portfolio Overview' },
             { id: 'opportunity', label: 'Opportunity Scoring' },
             { id: 'methodology', label: 'Methodology' },
         ],

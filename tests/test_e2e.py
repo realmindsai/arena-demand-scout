@@ -140,7 +140,7 @@ def test_methodology_tab_shows_content(page):
 def test_series_toggle_updates_charts(page):
     page.locator("nav button", has_text="Demand Forecast").click()
     page.wait_for_timeout(500)
-    page.locator("header button", has_text="High").click()
+    page.locator("section button", has_text="High").first.click()
     page.wait_for_timeout(500)
     # Plotly appends js-plotly-plot to the container div; .plot-container has zero height
     chart = page.locator("#chart-forecast.js-plotly-plot")
