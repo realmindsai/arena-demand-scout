@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+site/data/
+.abs_cache/
+*.xlsx
+.pytest_cache/

@@ -1,0 +1,22 @@
+[project]
+name = "arena-demand-scout"
+version = "0.1.0"
+description = "Dashboard: Arena REIT portfolio vs ABS childcare demand projections"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-playwright>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
