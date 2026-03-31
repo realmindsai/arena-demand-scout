@@ -6,6 +6,7 @@ function demandScout() {
         selectedStates: [],
         allStates: [],
         mapStateFilter: 'ALL',
+        forecastMode: 'indexed',
 
         tabs: [
             { id: 'portfolio', label: 'Portfolio Overview' },
@@ -109,8 +110,10 @@ function demandScout() {
                     break;
                 case 'forecast':
                     if (this.projections) {
-                        renderForecastChart(this.projections, this.activeSeries, this.selectedStates);
-                        renderForecastSummary(this.projections, this.activeSeries);
+                        renderForecastChart(this.projections, this.activeSeries, this.selectedStates, this.forecastMode);
+                        renderDemandPerCentre(this.projections, this.portfolio, this.activeSeries);
+                        renderForecastHeroCards(this.projections, this.portfolio, this.activeSeries);
+                        renderForecastTable(this.projections, this.portfolio, this.activeSeries);
                     }
                     break;
                 case 'opportunity':

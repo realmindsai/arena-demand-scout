@@ -39,8 +39,10 @@ function renderDonutChart(portfolio) {
 }
 
 
-function renderForecastChart(projections, activeSeries, selectedStates) {
+function renderForecastChart(projections, activeSeries, selectedStates, mode) {
     const years = projections.projection_years;
+    const baseIdx = years.indexOf(2026);
+    const indexed = mode === 'indexed';
     const traces = [];
 
     for (const state of selectedStates) {
@@ -48,28 +50,41 @@ function renderForecastChart(projections, activeSeries, selectedStates) {
         if (!stateData || !stateData[activeSeries]) continue;
 
         const pop = stateData[activeSeries].population_0_5;
+        const baseVal = baseIdx >= 0 ? pop[baseIdx] : pop[0];
         const color = STATE_COLORS[state] || '#94a3b8';
+
+        const yValues = indexed
+            ? pop.map(v => ((v - baseVal) / baseVal * 100))
+            : pop;
 
         traces.push({
             x: years.slice(0, pop.length),
-            y: pop,
+            y: yValues,
             name: state,
             type: 'scatter',
-            mode: 'lines',
-            line: { color, width: 2 },
-            hovertemplate: `${state}: %{y:,.0f}<extra>%{x}</extra>`,
+            mode: 'lines+markers',
+            line: { color, width: 3 },
+            marker: { size: 4 },
+            hovertemplate: indexed
+                ? `${state}: %{y:+.1f}%<extra>%{x}</extra>`
+                : `${state}: %{y:,.0f}<extra>%{x}</extra>`,
         });
 
+        // Confidence band for medium series
         if (activeSeries === 'series_b' && stateData.series_a && stateData.series_c) {
             const high = stateData.series_a.population_0_5;
             const low = stateData.series_c.population_0_5;
-            const bandYears = years.slice(0, Math.min(high.length, low.length));
+            const len = Math.min(high.length, low.length);
+            const bandYears = years.slice(0, len);
+
+            const highY = indexed ? high.slice(0, len).map(v => ((v - baseVal) / baseVal * 100)) : high.slice(0, len);
+            const lowY = indexed ? low.slice(0, len).map(v => ((v - baseVal) / baseVal * 100)) : low.slice(0, len);
 
             traces.push({
                 x: [...bandYears, ...bandYears.slice().reverse()],
-                y: [...high.slice(0, bandYears.length), ...low.slice(0, bandYears.length).reverse()],
+                y: [...highY, ...lowY.reverse()],
                 fill: 'toself',
-                fillcolor: color + '15',
+                fillcolor: color + '18',
                 line: { color: 'transparent' },
                 showlegend: false,
                 hoverinfo: 'skip',
@@ -82,51 +97,188 @@ function renderForecastChart(projections, activeSeries, selectedStates) {
 
     const layout = {
         ...PLOTLY_LAYOUT_BASE,
-        title: { text: 'Children Aged 0-5: Population Projections', font: { size: 16 } },
-        xaxis: { title: 'Year', dtick: 2 },
-        yaxis: { title: 'Population (0-5)', tickformat: ',.0f' },
+        title: { text: indexed ? 'Demand Growth: Indexed from 2026' : 'Children 0\u20135 Population', font: { size: 15 } },
+        xaxis: { title: '', dtick: 2, gridcolor: '#e2e8f0' },
+        yaxis: {
+            title: indexed ? 'Change from 2026 (%)' : 'Population (0\u20135)',
+            tickformat: indexed ? '+.1f' : ',.0f',
+            ticksuffix: indexed ? '%' : '',
+            zeroline: indexed,
+            zerolinecolor: '#94a3b8',
+            gridcolor: '#e2e8f0',
+        },
         legend: { orientation: 'h', y: -0.15 },
         shapes: [{
             type: 'line', x0: todayYear, x1: todayYear,
             y0: 0, y1: 1, yref: 'paper',
             line: { color: '#94a3b8', width: 1, dash: 'dash' },
         }],
+        annotations: indexed ? [{
+            x: todayYear, y: 1, yref: 'paper', xanchor: 'left',
+            text: ' Today', showarrow: false,
+            font: { size: 11, color: '#94a3b8' },
+        }] : [],
     };
 
     Plotly.newPlot('chart-forecast', traces, layout, PLOTLY_CONFIG);
 }
 
 
-function renderForecastSummary(projections, activeSeries) {
-    const grid = document.getElementById('forecast-summary-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
+function renderDemandPerCentre(projections, portfolio, activeSeries) {
+    const el = document.getElementById('chart-demand-per-centre');
+    if (!el || !portfolio?.states) return;
 
     const years = projections.projection_years;
     const idx2026 = years.indexOf(2026);
     const idx2031 = years.indexOf(2031);
-    const idx2036 = years.indexOf(2036);
 
+    const states = Object.keys(portfolio.states).filter(s => portfolio.states[s].centres > 0);
+    states.sort((a, b) => {
+        const popA = projections.states[a]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
+        const popB = projections.states[b]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
+        const rA = popA / portfolio.states[a].centres;
+        const rB = popB / portfolio.states[b].centres;
+        return rB - rA;
+    });
+
+    const current = [];
+    const projected = [];
+    for (const s of states) {
+        const centres = portfolio.states[s].centres;
+        const pop26 = projections.states[s]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
+        const pop31 = projections.states[s]?.[activeSeries]?.population_0_5?.[idx2031] || pop26;
+        current.push(Math.round(pop26 / centres));
+        projected.push(Math.round(pop31 / centres));
+    }
+
+    const data = [
+        {
+            x: states, y: current, name: '2026',
+            type: 'bar', marker: { color: '#94a3b8' },
+            hovertemplate: '%{x}: %{y:,.0f} children/centre<extra>2026</extra>',
+        },
+        {
+            x: states, y: projected, name: '2031',
+            type: 'bar', marker: { color: '#059669' },
+            hovertemplate: '%{x}: %{y:,.0f} children/centre<extra>2031</extra>',
+        },
+    ];
+
+    const layout = {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Children per Arena Centre', font: { size: 15 } },
+        barmode: 'group',
+        xaxis: { title: '' },
+        yaxis: { title: '', tickformat: ',.0f' },
+        legend: { orientation: 'h', y: -0.12 },
+        margin: { t: 40, r: 10, b: 40, l: 50 },
+    };
+
+    Plotly.newPlot(el, data, layout, PLOTLY_CONFIG);
+}
+
+
+function renderForecastHeroCards(projections, portfolio, activeSeries) {
+    const el = document.getElementById('forecast-hero-cards');
+    if (!el || !portfolio?.states) return;
+
+    const years = projections.projection_years;
+    const idx2026 = years.indexOf(2026);
+    const idx2031 = years.indexOf(2031);
+
+    // National totals
+    let natPop26 = 0, natPop31 = 0;
     for (const [state, data] of Object.entries(projections.states)) {
         const pop = data[activeSeries]?.population_0_5;
-        if (!pop || idx2026 < 0) continue;
-
-        const growth2031 = idx2031 >= 0
-            ? ((pop[idx2031] - pop[idx2026]) / pop[idx2026] * 100).toFixed(1)
-            : 'N/A';
-        const growth2036 = idx2036 >= 0
-            ? ((pop[idx2036] - pop[idx2026]) / pop[idx2026] * 100).toFixed(1)
-            : 'N/A';
-
-        const div = document.createElement('div');
-        div.className = 'p-3 rounded bg-slate-50';
-        div.innerHTML = `
-            <p class="font-semibold text-slate-700">${state}</p>
-            <p class="text-xs text-slate-500">2031: <span class="font-medium ${parseFloat(growth2031) > 0 ? 'text-green-600' : 'text-red-600'}">${growth2031 > 0 ? '+' : ''}${growth2031}%</span></p>
-            <p class="text-xs text-slate-500">2036: <span class="font-medium ${parseFloat(growth2036) > 0 ? 'text-green-600' : 'text-red-600'}">${growth2036 > 0 ? '+' : ''}${growth2036}%</span></p>
-        `;
-        grid.appendChild(div);
+        if (pop) {
+            natPop26 += pop[idx2026] || 0;
+            natPop31 += pop[idx2031] || 0;
+        }
     }
+    const natGrowth = ((natPop31 - natPop26) / natPop26 * 100).toFixed(1);
+    const additionalKids = natPop31 - natPop26;
+
+    // Fastest growing state
+    let maxGrowth = -Infinity, fastestState = '';
+    for (const [state, data] of Object.entries(projections.states)) {
+        const pop = data[activeSeries]?.population_0_5;
+        if (pop && pop[idx2026] > 0) {
+            const g = (pop[idx2031] - pop[idx2026]) / pop[idx2026] * 100;
+            if (g > maxGrowth) { maxGrowth = g; fastestState = state; }
+        }
+    }
+
+    // Most underserved (highest children per Arena centre)
+    let maxRatio = 0, underservedState = '';
+    for (const [state, sd] of Object.entries(portfolio.states)) {
+        if (sd.centres > 0) {
+            const pop = projections.states[state]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
+            const ratio = pop / sd.centres;
+            if (ratio > maxRatio) { maxRatio = ratio; underservedState = state; }
+        }
+    }
+
+    el.innerHTML = `
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-slate-500 mb-1">National Growth (2026\u20132031)</p>
+            <p class="text-3xl font-bold ${parseFloat(natGrowth) > 0 ? 'text-emerald-600' : 'text-red-600'}">+${natGrowth}%</p>
+            <p class="text-xs text-slate-400 mt-1">+${additionalKids.toLocaleString()} children 0\u20135</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-slate-500 mb-1">Fastest Growing State</p>
+            <p class="text-3xl font-bold text-emerald-600">${fastestState}</p>
+            <p class="text-xs text-slate-400 mt-1">+${maxGrowth.toFixed(1)}% by 2031</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-slate-500 mb-1">Most Underserved by Arena</p>
+            <p class="text-3xl font-bold text-amber-600">${underservedState}</p>
+            <p class="text-xs text-slate-400 mt-1">${Math.round(maxRatio).toLocaleString()} children per centre</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-slate-500 mb-1">Arena Portfolio</p>
+            <p class="text-3xl font-bold text-teal-600">${portfolio.national.total_centres}</p>
+            <p class="text-xs text-slate-400 mt-1">centres across ${Object.keys(portfolio.states).length} states</p>
+        </div>
+    `;
+}
+
+
+function renderForecastTable(projections, portfolio, activeSeries) {
+    const el = document.getElementById('forecast-table-body');
+    if (!el || !portfolio?.states) return;
+
+    const years = projections.projection_years;
+    const idx2026 = years.indexOf(2026);
+    const idx2031 = years.indexOf(2031);
+
+    const rows = [];
+    for (const [state, sd] of Object.entries(portfolio.states)) {
+        const pop = projections.states[state]?.[activeSeries]?.population_0_5;
+        if (!pop) continue;
+        const pop26 = pop[idx2026] || 0;
+        const pop31 = pop[idx2031] || pop26;
+        const growth = pop26 > 0 ? ((pop31 - pop26) / pop26 * 100) : 0;
+        const centres = sd.centres || 0;
+        const perCentre26 = centres > 0 ? Math.round(pop26 / centres) : 0;
+        const perCentre31 = centres > 0 ? Math.round(pop31 / centres) : 0;
+        rows.push({ state, pop26, pop31, growth, centres, perCentre26, perCentre31 });
+    }
+
+    rows.sort((a, b) => b.perCentre31 - a.perCentre31);
+
+    el.innerHTML = rows.map(r => `
+        <tr class="border-t border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-2 font-medium">${r.state}</td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.pop26.toLocaleString()}</td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.pop31.toLocaleString()}</td>
+            <td class="px-4 py-2 text-right">
+                <span class="font-semibold ${r.growth > 0 ? 'text-emerald-600' : 'text-red-600'}">${r.growth > 0 ? '+' : ''}${r.growth.toFixed(1)}%</span>
+            </td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.centres}</td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.perCentre26 > 0 ? r.perCentre26.toLocaleString() : '\u2014'}</td>
+            <td class="px-4 py-2 text-right tabular-nums font-semibold ${r.perCentre31 > r.perCentre26 ? 'text-amber-600' : 'text-emerald-600'}">${r.perCentre31 > 0 ? r.perCentre31.toLocaleString() : '\u2014'}</td>
+        </tr>
+    `).join('');
 }
 
 
