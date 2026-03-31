@@ -7,7 +7,7 @@ from src.compute_sa2_scores import compute_sa2_scores, get_sa2_verdict
 class TestComputeSa2Scores:
     @pytest.fixture
     def sample_geojson(self):
-        """GeoJSON with merged population data."""
+        """GeoJSON with merged population and supply data."""
         return {
             "type": "FeatureCollection",
             "features": [
@@ -21,6 +21,9 @@ class TestComputeSa2Scores:
                         "area_albers_sqkm": 3000.0,
                         "pop_0_4": 200,
                         "children_per_sqkm": 0.07,
+                        "centre_count": 1,
+                        "approved_places": 50,
+                        "places_per_child": 0.25,
                     },
                     "geometry": {"type": "Polygon", "coordinates": [[[149, -35], [150, -35], [150, -36], [149, -35]]]},
                 },
@@ -34,6 +37,9 @@ class TestComputeSa2Scores:
                         "area_albers_sqkm": 5.0,
                         "pop_0_4": 800,
                         "children_per_sqkm": 160.0,
+                        "centre_count": 2,
+                        "approved_places": 100,
+                        "places_per_child": 0.13,
                     },
                     "geometry": {"type": "Polygon", "coordinates": [[[144, -37], [145, -37], [145, -38], [144, -37]]]},
                 },
@@ -47,6 +53,9 @@ class TestComputeSa2Scores:
                         "area_albers_sqkm": 50.0,
                         "pop_0_4": 500,
                         "children_per_sqkm": 10.0,
+                        "centre_count": 5,
+                        "approved_places": 200,
+                        "places_per_child": 0.40,
                     },
                     "geometry": {"type": "Polygon", "coordinates": [[[153, -27], [154, -27], [154, -28], [153, -27]]]},
                 },
@@ -76,7 +85,8 @@ class TestComputeSa2Scores:
 
     def test_has_required_fields(self, sample_geojson):
         result = compute_sa2_scores(sample_geojson)
-        required = {"sa2_code", "sa2_name", "state_abbr", "pop_0_4", "children_per_sqkm", "demand_score", "verdict"}
+        required = {"sa2_code", "sa2_name", "state_abbr", "pop_0_4", "children_per_sqkm",
+                     "centre_count", "approved_places", "places_per_child", "demand_score", "verdict"}
         for entry in result["sa2_scores"]:
             assert required.issubset(entry.keys()), f"Missing: {required - entry.keys()}"
 
@@ -88,16 +98,16 @@ class TestComputeSa2Scores:
 
 class TestGetSa2Verdict:
     def test_high(self):
-        assert get_sa2_verdict(80) == "High demand"
+        assert get_sa2_verdict(80) == "High opportunity"
 
     def test_medium(self):
-        assert get_sa2_verdict(50) == "Medium demand"
+        assert get_sa2_verdict(50) == "Medium opportunity"
 
     def test_low(self):
-        assert get_sa2_verdict(20) == "Low demand"
+        assert get_sa2_verdict(20) == "Low opportunity"
 
     def test_boundary_high(self):
-        assert get_sa2_verdict(70) == "High demand"
+        assert get_sa2_verdict(70) == "High opportunity"
 
     def test_boundary_medium(self):
-        assert get_sa2_verdict(40) == "Medium demand"
+        assert get_sa2_verdict(40) == "Medium opportunity"

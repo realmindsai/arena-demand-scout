@@ -9,6 +9,7 @@ CACHE_DIR = Path(".abs_cache")
 
 SA2_XLSX_FILENAME = "32350DS0001_2024.xlsx"
 SA2_POPULATION_SOURCE = Path(__file__).parent / "data" / "sa2_population_source.json"
+SA2_SUPPLY_SOURCE = Path(__file__).parent / "data" / "sa2_childcare_supply.json"
 
 # XLSX structure (Table 3 — Persons)
 SA2_XLSX_SHEET = "Table 3"
@@ -132,11 +133,22 @@ def fetch_sa2_boundaries(cache_dir: Path | None = None) -> dict:
     return geojson
 
 
-def merge_population_into_geojson(geojson: dict, population: dict) -> dict:
-    """Merge SA2 population data into GeoJSON feature properties.
+def load_sa2_supply() -> dict:
+    """Load childcare supply data per SA2 (from ACECQA national register).
 
-    Adds: pop_0_4, state_abbr, children_per_sqkm
+    Returns: {sa2_code: {centre_count, approved_places, long_day_care}}
     """
+    return json.loads(SA2_SUPPLY_SOURCE.read_text())
+
+
+def merge_population_into_geojson(geojson: dict, population: dict, supply: dict | None = None) -> dict:
+    """Merge SA2 population and supply data into GeoJSON feature properties.
+
+    Adds: pop_0_4, state_abbr, children_per_sqkm, centre_count, approved_places,
+          long_day_care, places_per_child
+    """
+    supply = supply or {}
+
     for feature in geojson["features"]:
         props = feature["properties"]
         sa2_code = str(props.get("sa2_code_2021", ""))
@@ -145,12 +157,24 @@ def merge_population_into_geojson(geojson: dict, population: dict) -> dict:
         pop_0_4 = pop_entry.get("pop_0_4", 0)
         state_abbr = pop_entry.get("state_abbr", STATE_CODE_TO_ABBR.get(str(props.get("state_code_2021", "")), ""))
 
-        area = props.get("area_albers_sqkm", 0) or 1  # avoid division by zero
+        area = props.get("area_albers_sqkm", 0) or 1
         children_per_sqkm = round(pop_0_4 / area, 2) if area > 0 else 0
 
         props["pop_0_4"] = pop_0_4
         props["state_abbr"] = state_abbr
         props["children_per_sqkm"] = children_per_sqkm
+
+        # Supply data from ACECQA
+        supply_entry = supply.get(sa2_code, {})
+        centre_count = supply_entry.get("centre_count", 0)
+        approved_places = supply_entry.get("approved_places", 0)
+        long_day_care = supply_entry.get("long_day_care", 0)
+        places_per_child = round(approved_places / pop_0_4, 2) if pop_0_4 > 0 else 0
+
+        props["centre_count"] = centre_count
+        props["approved_places"] = approved_places
+        props["long_day_care"] = long_day_care
+        props["places_per_child"] = places_per_child
 
     return geojson
 
@@ -170,7 +194,11 @@ def build_sa2_data(cache_dir: Path | None = None) -> tuple[dict, dict]:
     geojson = fetch_sa2_boundaries(cache_dir=cache)
     print(f"  Got {len(geojson['features'])} boundary features")
 
-    print("Merging population into boundaries...")
-    merged = merge_population_into_geojson(geojson, population)
+    print("Loading childcare supply data (ACECQA)...")
+    supply = load_sa2_supply()
+    print(f"  {len(supply)} SA2 regions with childcare centres")
+
+    print("Merging population + supply into boundaries...")
+    merged = merge_population_into_geojson(geojson, population, supply)
 
     return merged, population

@@ -61,17 +61,25 @@ function initSa2Map(geojsonData, sa2Scores, stateFilter) {
             const verdict = entry.verdict || 'N/A';
             const area = props.area_albers_sqkm ? props.area_albers_sqkm.toFixed(1) : 'N/A';
 
+            const centres = entry.centre_count || props.centre_count || 0;
+            const places = entry.approved_places || props.approved_places || 0;
+            const ppc = entry.places_per_child || props.places_per_child || 0;
+
             layer.bindPopup(`
-                <div class="text-sm" style="min-width: 200px">
+                <div class="text-sm" style="min-width: 220px">
                     <p class="font-bold text-base">${props.sa2_name_2021 || 'Unknown'}</p>
                     <p class="text-gray-500">${props.state_abbr || ''}</p>
                     <hr class="my-1">
+                    <p><strong>Demand</strong></p>
                     <p>Children 0-4: <strong>${pop.toLocaleString()}</strong></p>
-                    <p>Density: <strong>${density.toFixed(1)}</strong> per km²</p>
-                    <p>Area: ${area} km²</p>
+                    <p>Density: ${density.toFixed(1)} per km²</p>
                     <hr class="my-1">
-                    <p>Demand Score: <strong style="color: ${demandScoreColor(score)}">${score}</strong></p>
-                    <p>${verdict}</p>
+                    <p><strong>Supply</strong></p>
+                    <p>Childcare centres: <strong>${centres}</strong></p>
+                    <p>Approved places: <strong>${places.toLocaleString()}</strong></p>
+                    <p>Places per child: <strong>${ppc.toFixed(2)}</strong></p>
+                    <hr class="my-1">
+                    <p>Opportunity Score: <strong style="color: ${demandScoreColor(score)}">${score}</strong> — ${verdict}</p>
                 </div>
             `);
 
