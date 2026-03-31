@@ -21,6 +21,7 @@ function demandScout() {
         scores: null,
         sa2Boundaries: null,
         sa2Scores: null,
+        stateMarket: null,
 
         get stateEntries() {
             if (!this.portfolio?.states) return [];
@@ -39,18 +40,20 @@ function demandScout() {
 
         async init() {
             try {
-                const [portfolioRes, projectionsRes, scoresRes, sa2BoundariesRes, sa2ScoresRes] = await Promise.all([
+                const [portfolioRes, projectionsRes, scoresRes, sa2BoundariesRes, sa2ScoresRes, stateMarketRes] = await Promise.all([
                     fetch('data/arena_portfolio.json').then(r => r.json()),
                     fetch('data/abs_projections.json').then(r => r.json()),
                     fetch('data/opportunity_scores.json').then(r => r.json()),
                     fetch('data/sa2_boundaries.geojson').then(r => r.json()),
                     fetch('data/sa2_scores.json').then(r => r.json()),
+                    fetch('data/state_market.json').then(r => r.json()),
                 ]);
                 this.portfolio = portfolioRes;
                 this.projections = projectionsRes;
                 this.scores = scoresRes;
                 this.sa2Boundaries = sa2BoundariesRes;
                 this.sa2Scores = sa2ScoresRes;
+                this.stateMarket = stateMarketRes;
 
                 this.allStates = Object.keys(this.projections.states);
                 this.selectedStates = [...this.allStates];
@@ -111,9 +114,9 @@ function demandScout() {
                 case 'forecast':
                     if (this.projections) {
                         renderForecastChart(this.projections, this.activeSeries, this.selectedStates, this.forecastMode);
-                        renderDemandPerCentre(this.projections, this.portfolio, this.activeSeries);
-                        renderForecastHeroCards(this.projections, this.portfolio, this.activeSeries);
-                        renderForecastTable(this.projections, this.portfolio, this.activeSeries);
+                        renderDemandPerCentre(this.projections, this.portfolio, this.activeSeries, this.stateMarket);
+                        renderForecastHeroCards(this.projections, this.portfolio, this.activeSeries, this.stateMarket);
+                        renderForecastTable(this.projections, this.portfolio, this.activeSeries, this.stateMarket);
                     }
                     break;
                 case 'opportunity':

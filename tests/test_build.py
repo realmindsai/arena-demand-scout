@@ -34,6 +34,15 @@ def test_build_creates_all_output_files_when_abs_cached(tmp_path):
     assert (output_dir / "opportunity_scores.json").exists()
     assert (output_dir / "sa2_boundaries.geojson").exists()
     assert (output_dir / "sa2_scores.json").exists()
+    assert (output_dir / "state_market.json").exists()
+
+    # Verify state market structure
+    market = json.loads((output_dir / "state_market.json").read_text())
+    assert "states" in market
+    nsw = market["states"].get("NSW", {})
+    assert nsw["total_centres"] > 0
+    assert nsw["arena_market_share_pct"] > 0
+    assert "underserved_sa2" in nsw
 
     # Verify SA2 scores structure
     sa2_scores = json.loads((output_dir / "sa2_scores.json").read_text())

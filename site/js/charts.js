@@ -124,61 +124,52 @@ function renderForecastChart(projections, activeSeries, selectedStates, mode) {
 }
 
 
-function renderDemandPerCentre(projections, portfolio, activeSeries) {
+function renderDemandPerCentre(projections, portfolio, activeSeries, stateMarket) {
     const el = document.getElementById('chart-demand-per-centre');
-    if (!el || !portfolio?.states) return;
+    if (!el || !stateMarket?.states) return;
 
-    const years = projections.projection_years;
-    const idx2026 = years.indexOf(2026);
-    const idx2031 = years.indexOf(2031);
+    const states = Object.keys(stateMarket.states).filter(s =>
+        stateMarket.states[s].total_centres > 0 && (portfolio?.states?.[s]?.centres || 0) > 0
+    );
+    states.sort((a, b) => stateMarket.states[b].children_per_centre - stateMarket.states[a].children_per_centre);
 
-    const states = Object.keys(portfolio.states).filter(s => portfolio.states[s].centres > 0);
-    states.sort((a, b) => {
-        const popA = projections.states[a]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
-        const popB = projections.states[b]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
-        const rA = popA / portfolio.states[a].centres;
-        const rB = popB / portfolio.states[b].centres;
-        return rB - rA;
-    });
-
-    const current = [];
-    const projected = [];
+    const marketKpc = [];
+    const arenaKpc = [];
     for (const s of states) {
-        const centres = portfolio.states[s].centres;
-        const pop26 = projections.states[s]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
-        const pop31 = projections.states[s]?.[activeSeries]?.population_0_5?.[idx2031] || pop26;
-        current.push(Math.round(pop26 / centres));
-        projected.push(Math.round(pop31 / centres));
+        const m = stateMarket.states[s];
+        const arenaCentres = portfolio.states[s]?.centres || 0;
+        marketKpc.push(m.children_per_centre);
+        arenaKpc.push(arenaCentres > 0 ? Math.round(m.pop_0_4 / arenaCentres) : 0);
     }
 
     const data = [
         {
-            x: states, y: current, name: '2026',
+            x: states, y: marketKpc, name: 'All Providers',
             type: 'bar', marker: { color: '#94a3b8' },
-            hovertemplate: '%{x}: %{y:,.0f} children/centre<extra>2026</extra>',
+            hovertemplate: '%{x}: %{y:,.0f} kids/centre<extra>All Providers</extra>',
         },
         {
-            x: states, y: projected, name: '2031',
+            x: states, y: arenaKpc, name: 'Arena REIT',
             type: 'bar', marker: { color: '#059669' },
-            hovertemplate: '%{x}: %{y:,.0f} children/centre<extra>2031</extra>',
+            hovertemplate: '%{x}: %{y:,.0f} kids/centre<extra>Arena REIT</extra>',
         },
     ];
 
     const layout = {
         ...PLOTLY_LAYOUT_BASE,
-        title: { text: 'Children per Arena Centre', font: { size: 15 } },
+        title: { text: 'Children per Centre: Market vs Arena', font: { size: 14 } },
         barmode: 'group',
         xaxis: { title: '' },
         yaxis: { title: '', tickformat: ',.0f' },
         legend: { orientation: 'h', y: -0.12 },
-        margin: { t: 40, r: 10, b: 40, l: 50 },
+        margin: { t: 40, r: 10, b: 40, l: 55 },
     };
 
     Plotly.newPlot(el, data, layout, PLOTLY_CONFIG);
 }
 
 
-function renderForecastHeroCards(projections, portfolio, activeSeries) {
+function renderForecastHeroCards(projections, portfolio, activeSeries, stateMarket) {
     const el = document.getElementById('forecast-hero-cards');
     if (!el || !portfolio?.states) return;
 
@@ -208,15 +199,16 @@ function renderForecastHeroCards(projections, portfolio, activeSeries) {
         }
     }
 
-    // Most underserved (highest children per Arena centre)
-    let maxRatio = 0, underservedState = '';
-    for (const [state, sd] of Object.entries(portfolio.states)) {
-        if (sd.centres > 0) {
-            const pop = projections.states[state]?.[activeSeries]?.population_0_5?.[idx2026] || 0;
-            const ratio = pop / sd.centres;
-            if (ratio > maxRatio) { maxRatio = ratio; underservedState = state; }
+    // National market share
+    let totalCentres = 0, arenaCentres = 0, totalUnderserved = 0;
+    if (stateMarket?.states) {
+        for (const m of Object.values(stateMarket.states)) {
+            totalCentres += m.total_centres;
+            arenaCentres += m.arena_centres;
+            totalUnderserved += m.underserved_sa2;
         }
     }
+    const nationalShare = totalCentres > 0 ? (arenaCentres / totalCentres * 100).toFixed(1) : '0';
 
     el.innerHTML = `
         <div class="bg-white rounded-lg shadow p-5">
@@ -227,58 +219,71 @@ function renderForecastHeroCards(projections, portfolio, activeSeries) {
         <div class="bg-white rounded-lg shadow p-5">
             <p class="text-sm text-slate-500 mb-1">Fastest Growing State</p>
             <p class="text-3xl font-bold text-emerald-600">${fastestState}</p>
-            <p class="text-xs text-slate-400 mt-1">+${maxGrowth.toFixed(1)}% by 2031</p>
+            <p class="text-xs text-slate-400 mt-1">+${maxGrowth.toFixed(1)}% projected by 2031</p>
         </div>
         <div class="bg-white rounded-lg shadow p-5">
-            <p class="text-sm text-slate-500 mb-1">Most Underserved by Arena</p>
-            <p class="text-3xl font-bold text-amber-600">${underservedState}</p>
-            <p class="text-xs text-slate-400 mt-1">${Math.round(maxRatio).toLocaleString()} children per centre</p>
+            <p class="text-sm text-slate-500 mb-1">Arena National Market Share</p>
+            <p class="text-3xl font-bold text-teal-600">${nationalShare}%</p>
+            <p class="text-xs text-slate-400 mt-1">${arenaCentres} of ${totalCentres.toLocaleString()} centres</p>
         </div>
         <div class="bg-white rounded-lg shadow p-5">
-            <p class="text-sm text-slate-500 mb-1">Arena Portfolio</p>
-            <p class="text-3xl font-bold text-teal-600">${portfolio.national.total_centres}</p>
-            <p class="text-xs text-slate-400 mt-1">centres across ${Object.keys(portfolio.states).length} states</p>
+            <p class="text-sm text-slate-500 mb-1">Underserved SA2 Regions</p>
+            <p class="text-3xl font-bold text-amber-600">${totalUnderserved}</p>
+            <p class="text-xs text-slate-400 mt-1">scoring \u226560 (demand exceeds supply)</p>
         </div>
     `;
 }
 
 
-function renderForecastTable(projections, portfolio, activeSeries) {
+function renderForecastTable(projections, portfolio, activeSeries, stateMarket) {
     const el = document.getElementById('forecast-table-body');
-    if (!el || !portfolio?.states) return;
+    if (!el || !stateMarket?.states) return;
 
     const years = projections.projection_years;
     const idx2026 = years.indexOf(2026);
     const idx2031 = years.indexOf(2031);
 
     const rows = [];
-    for (const [state, sd] of Object.entries(portfolio.states)) {
+    for (const [state, m] of Object.entries(stateMarket.states)) {
         const pop = projections.states[state]?.[activeSeries]?.population_0_5;
-        if (!pop) continue;
-        const pop26 = pop[idx2026] || 0;
-        const pop31 = pop[idx2031] || pop26;
+        const pop26 = pop ? (pop[idx2026] || 0) : m.pop_0_4;
+        const pop31 = pop ? (pop[idx2031] || pop26) : pop26;
         const growth = pop26 > 0 ? ((pop31 - pop26) / pop26 * 100) : 0;
-        const centres = sd.centres || 0;
-        const perCentre26 = centres > 0 ? Math.round(pop26 / centres) : 0;
-        const perCentre31 = centres > 0 ? Math.round(pop31 / centres) : 0;
-        rows.push({ state, pop26, pop31, growth, centres, perCentre26, perCentre31 });
+
+        rows.push({
+            state,
+            pop: m.pop_0_4,
+            growth,
+            totalCentres: m.total_centres,
+            kpc: m.children_per_centre,
+            arenaCentres: m.arena_centres,
+            arenaShare: m.arena_market_share_pct,
+            underserved: m.underserved_sa2,
+            totalSa2: m.total_sa2,
+        });
     }
 
-    rows.sort((a, b) => b.perCentre31 - a.perCentre31);
+    rows.sort((a, b) => b.underserved - a.underserved);
 
-    el.innerHTML = rows.map(r => `
+    el.innerHTML = rows.map(r => {
+        const underservedPct = r.totalSa2 > 0 ? (r.underserved / r.totalSa2 * 100).toFixed(0) : 0;
+        return `
         <tr class="border-t border-slate-100 hover:bg-slate-50">
             <td class="px-4 py-2 font-medium">${r.state}</td>
-            <td class="px-4 py-2 text-right tabular-nums">${r.pop26.toLocaleString()}</td>
-            <td class="px-4 py-2 text-right tabular-nums">${r.pop31.toLocaleString()}</td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.pop.toLocaleString()}</td>
             <td class="px-4 py-2 text-right">
                 <span class="font-semibold ${r.growth > 0 ? 'text-emerald-600' : 'text-red-600'}">${r.growth > 0 ? '+' : ''}${r.growth.toFixed(1)}%</span>
             </td>
-            <td class="px-4 py-2 text-right tabular-nums">${r.centres}</td>
-            <td class="px-4 py-2 text-right tabular-nums">${r.perCentre26 > 0 ? r.perCentre26.toLocaleString() : '\u2014'}</td>
-            <td class="px-4 py-2 text-right tabular-nums font-semibold ${r.perCentre31 > r.perCentre26 ? 'text-amber-600' : 'text-emerald-600'}">${r.perCentre31 > 0 ? r.perCentre31.toLocaleString() : '\u2014'}</td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.totalCentres.toLocaleString()}</td>
+            <td class="px-4 py-2 text-right tabular-nums ${r.kpc > 90 ? 'text-amber-600 font-semibold' : ''}">${r.kpc.toFixed(0)}</td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.arenaCentres}</td>
+            <td class="px-4 py-2 text-right tabular-nums">${r.arenaShare.toFixed(1)}%</td>
+            <td class="px-4 py-2 text-right">
+                <span class="font-semibold ${r.underserved > 50 ? 'text-amber-600' : 'text-slate-600'}">${r.underserved}</span>
+                <span class="text-slate-400 text-xs"> / ${r.totalSa2} (${underservedPct}%)</span>
+            </td>
         </tr>
-    `).join('');
+    `}).join('');
 }
 
 

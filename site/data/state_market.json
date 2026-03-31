@@ -1,0 +1,108 @@
+{
+  "states": {
+    "NSW": {
+      "pop_0_4": 473340,
+      "total_centres": 6140,
+      "total_places": 378257,
+      "long_day_care": 3659,
+      "family_day_care": 112,
+      "children_per_centre": 77.1,
+      "children_per_place": 1.25,
+      "arena_centres": 39,
+      "arena_market_share_pct": 0.64,
+      "underserved_sa2": 286,
+      "total_sa2": 644
+    },
+    "VIC": {
+      "pop_0_4": 389431,
+      "total_centres": 4953,
+      "total_places": 351346,
+      "long_day_care": 2126,
+      "family_day_care": 112,
+      "children_per_centre": 78.6,
+      "children_per_place": 1.11,
+      "arena_centres": 85,
+      "arena_market_share_pct": 1.72,
+      "underserved_sa2": 188,
+      "total_sa2": 524
+    },
+    "QLD": {
+      "pop_0_4": 308649,
+      "total_centres": 3343,
+      "total_places": 266961,
+      "long_day_care": 1940,
+      "family_day_care": 82,
+      "children_per_centre": 92.3,
+      "children_per_place": 1.16,
+      "arena_centres": 88,
+      "arena_market_share_pct": 2.63,
+      "underserved_sa2": 117,
+      "total_sa2": 548
+    },
+    "SA": {
+      "pop_0_4": 96961,
+      "total_centres": 1290,
+      "total_places": 81976,
+      "long_day_care": 507,
+      "family_day_care": 6,
+      "children_per_centre": 75.2,
+      "children_per_place": 1.18,
+      "arena_centres": 25,
+      "arena_market_share_pct": 1.94,
+      "underserved_sa2": 46,
+      "total_sa2": 176
+    },
+    "WA": {
+      "pop_0_4": 168617,
+      "total_centres": 1525,
+      "total_places": 96824,
+      "long_day_care": 952,
+      "family_day_care": 26,
+      "children_per_centre": 110.6,
+      "children_per_place": 1.74,
+      "arena_centres": 27,
+      "arena_market_share_pct": 1.77,
+      "underserved_sa2": 118,
+      "total_sa2": 267
+    },
+    "TAS": {
+      "pop_0_4": 28585,
+      "total_centres": 282,
+      "total_places": 18139,
+      "long_day_care": 163,
+      "family_day_care": 5,
+      "children_per_centre": 101.4,
+      "children_per_place": 1.58,
+      "arena_centres": 8,
+      "arena_market_share_pct": 2.84,
+      "underserved_sa2": 7,
+      "total_sa2": 101
+    },
+    "NT": {
+      "pop_0_4": 16697,
+      "total_centres": 224,
+      "total_places": 14018,
+      "long_day_care": 89,
+      "family_day_care": 1,
+      "children_per_centre": 74.5,
+      "children_per_place": 1.19,
+      "arena_centres": 2,
+      "arena_market_share_pct": 0.89,
+      "underserved_sa2": 2,
+      "total_sa2": 70
+    },
+    "ACT": {
+      "pop_0_4": 26062,
+      "total_centres": 379,
+      "total_places": 31661,
+      "long_day_care": 176,
+      "family_day_care": 6,
+      "children_per_centre": 68.8,
+      "children_per_place": 0.82,
+      "arena_centres": 0,
+      "arena_market_share_pct": 0.0,
+      "underserved_sa2": 10,
+      "total_sa2": 136
+    }
+  }
+}
