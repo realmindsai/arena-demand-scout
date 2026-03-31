@@ -124,48 +124,160 @@ function renderForecastChart(projections, activeSeries, selectedStates, mode) {
 }
 
 
-function renderDemandPerCentre(projections, portfolio, activeSeries, stateMarket) {
-    const el = document.getElementById('chart-demand-per-centre');
+function renderShareVsGrowth(projections, activeSeries, stateMarket) {
+    const el = document.getElementById('chart-share-vs-growth');
     if (!el || !stateMarket?.states) return;
 
-    const states = Object.keys(stateMarket.states).filter(s =>
-        stateMarket.states[s].total_centres > 0 && (portfolio?.states?.[s]?.centres || 0) > 0
-    );
-    states.sort((a, b) => stateMarket.states[b].children_per_centre - stateMarket.states[a].children_per_centre);
+    const years = projections.projection_years;
+    const idx2026 = years.indexOf(2026);
+    const idx2031 = years.indexOf(2031);
 
-    const marketKpc = [];
-    const arenaKpc = [];
+    const states = [], shares = [], growths = [], sizes = [], colors = [];
+    for (const [state, m] of Object.entries(stateMarket.states)) {
+        if (m.arena_centres === 0) continue;
+        const pop = projections.states[state]?.[activeSeries]?.population_0_5;
+        if (!pop) continue;
+        const g = ((pop[idx2031] - pop[idx2026]) / pop[idx2026] * 100);
+        states.push(state);
+        shares.push(m.arena_market_share_pct);
+        growths.push(g);
+        sizes.push(Math.max(12, Math.sqrt(m.arena_centres) * 8));
+        colors.push(STATE_COLORS[state] || '#94a3b8');
+    }
+
+    const medShare = median(shares);
+    const medGrowth = median(growths);
+
+    const data = [{
+        x: shares, y: growths, text: states, mode: 'markers+text',
+        type: 'scatter', textposition: 'top center',
+        marker: { size: sizes, color: colors, opacity: 0.85, line: { color: '#fff', width: 1.5 } },
+        hovertemplate: '%{text}<br>Arena share: %{x:.1f}%<br>Demand growth: %{y:+.1f}%<extra></extra>',
+    }];
+
+    const layout = {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Arena Share vs Demand Growth', font: { size: 14 } },
+        xaxis: { title: 'Arena Market Share (%)', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Demand Growth 2026\u20132031 (%)', ticksuffix: '%', gridcolor: '#e2e8f0' },
+        margin: { t: 40, r: 20, b: 50, l: 60 },
+        shapes: [
+            { type: 'line', x0: medShare, x1: medShare, y0: 0, y1: 1, yref: 'paper',
+              line: { color: '#cbd5e1', width: 1, dash: 'dot' } },
+            { type: 'line', y0: medGrowth, y1: medGrowth, x0: 0, x1: 1, xref: 'paper',
+              line: { color: '#cbd5e1', width: 1, dash: 'dot' } },
+        ],
+        annotations: [
+            { x: 0.02, y: 0.98, xref: 'paper', yref: 'paper', text: 'GROW HERE',
+              showarrow: false, font: { size: 10, color: '#059669' }, xanchor: 'left' },
+            { x: 0.98, y: 0.98, xref: 'paper', yref: 'paper', text: 'STRONG POSITION',
+              showarrow: false, font: { size: 10, color: '#2563eb' }, xanchor: 'right' },
+            { x: 0.02, y: 0.02, xref: 'paper', yref: 'paper', text: 'LOW PRIORITY',
+              showarrow: false, font: { size: 10, color: '#94a3b8' }, xanchor: 'left' },
+            { x: 0.98, y: 0.02, xref: 'paper', yref: 'paper', text: 'DEFEND',
+              showarrow: false, font: { size: 10, color: '#d97706' }, xanchor: 'right' },
+        ],
+    };
+
+    Plotly.newPlot(el, data, layout, PLOTLY_CONFIG);
+}
+
+
+function renderPortfolioBalance(stateMarket) {
+    const el = document.getElementById('chart-portfolio-balance');
+    if (!el || !stateMarket?.states) return;
+
+    let totalKids = 0, totalArena = 0;
+    for (const m of Object.values(stateMarket.states)) {
+        totalKids += m.pop_0_4;
+        totalArena += m.arena_centres;
+    }
+
+    const states = Object.keys(stateMarket.states).filter(s => stateMarket.states[s].arena_centres > 0);
+    states.sort((a, b) => {
+        const gapA = (stateMarket.states[a].pop_0_4 / totalKids * 100) - (stateMarket.states[a].arena_centres / totalArena * 100);
+        const gapB = (stateMarket.states[b].pop_0_4 / totalKids * 100) - (stateMarket.states[b].arena_centres / totalArena * 100);
+        return gapB - gapA;
+    });
+
+    const kidsPct = [], arenaPct = [];
     for (const s of states) {
         const m = stateMarket.states[s];
-        const arenaCentres = portfolio.states[s]?.centres || 0;
-        marketKpc.push(m.children_per_centre);
-        arenaKpc.push(arenaCentres > 0 ? Math.round(m.pop_0_4 / arenaCentres) : 0);
+        kidsPct.push(+(m.pop_0_4 / totalKids * 100).toFixed(1));
+        arenaPct.push(+(m.arena_centres / totalArena * 100).toFixed(1));
     }
 
     const data = [
         {
-            x: states, y: marketKpc, name: 'All Providers',
-            type: 'bar', marker: { color: '#94a3b8' },
-            hovertemplate: '%{x}: %{y:,.0f} kids/centre<extra>All Providers</extra>',
+            y: states, x: kidsPct, name: '% of National Children',
+            type: 'bar', orientation: 'h', marker: { color: '#94a3b8' },
+            hovertemplate: '%{y}: %{x:.1f}% of children<extra></extra>',
         },
         {
-            x: states, y: arenaKpc, name: 'Arena REIT',
-            type: 'bar', marker: { color: '#059669' },
-            hovertemplate: '%{x}: %{y:,.0f} kids/centre<extra>Arena REIT</extra>',
+            y: states, x: arenaPct, name: '% of Arena Centres',
+            type: 'bar', orientation: 'h', marker: { color: '#059669' },
+            hovertemplate: '%{y}: %{x:.1f}% of Arena portfolio<extra></extra>',
         },
     ];
 
     const layout = {
         ...PLOTLY_LAYOUT_BASE,
-        title: { text: 'Children per Centre: Market vs Arena', font: { size: 14 } },
+        title: { text: 'Portfolio Balance: Children vs Arena Centres', font: { size: 14 } },
         barmode: 'group',
-        xaxis: { title: '' },
-        yaxis: { title: '', tickformat: ',.0f' },
-        legend: { orientation: 'h', y: -0.12 },
-        margin: { t: 40, r: 10, b: 40, l: 55 },
+        xaxis: { title: '% of National Total', ticksuffix: '%', gridcolor: '#e2e8f0' },
+        yaxis: { title: '', automargin: true },
+        legend: { orientation: 'h', y: -0.15 },
+        margin: { t: 40, r: 20, b: 50, l: 40 },
     };
 
     Plotly.newPlot(el, data, layout, PLOTLY_CONFIG);
+}
+
+
+function renderSupplyTrajectory(projections, activeSeries, stateMarket) {
+    const el = document.getElementById('chart-supply-trajectory');
+    if (!el || !stateMarket?.states) return;
+
+    const years = projections.projection_years;
+    const idx2026 = years.indexOf(2026);
+    const traces = [];
+
+    for (const [state, m] of Object.entries(stateMarket.states)) {
+        if (m.total_places === 0) continue;
+        const pop = projections.states[state]?.[activeSeries]?.population_0_5;
+        if (!pop) continue;
+
+        const color = STATE_COLORS[state] || '#94a3b8';
+        // Places per child ratio projected forward (supply held constant)
+        const ppcValues = pop.map(p => p > 0 ? +(m.total_places / p).toFixed(3) : 0);
+
+        traces.push({
+            x: years.slice(0, pop.length),
+            y: ppcValues,
+            name: state,
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color, width: 2 },
+            marker: { size: 3 },
+            hovertemplate: `${state}: %{y:.3f} places/child<extra>%{x}</extra>`,
+        });
+    }
+
+    const layout = {
+        ...PLOTLY_LAYOUT_BASE,
+        title: { text: 'Places per Child Trajectory (Supply Held Constant)', font: { size: 14 } },
+        xaxis: { title: '', dtick: 2, gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Approved Places / Child 0\u20135', gridcolor: '#e2e8f0' },
+        legend: { orientation: 'h', y: -0.15 },
+        margin: { t: 40, r: 20, b: 40, l: 60 },
+        shapes: [{
+            type: 'line', x0: new Date().getFullYear(), x1: new Date().getFullYear(),
+            y0: 0, y1: 1, yref: 'paper',
+            line: { color: '#94a3b8', width: 1, dash: 'dash' },
+        }],
+    };
+
+    Plotly.newPlot(el, traces, layout, PLOTLY_CONFIG);
 }
 
 

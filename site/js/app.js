@@ -114,7 +114,9 @@ function demandScout() {
                 case 'forecast':
                     if (this.projections) {
                         renderForecastChart(this.projections, this.activeSeries, this.selectedStates, this.forecastMode);
-                        renderDemandPerCentre(this.projections, this.portfolio, this.activeSeries, this.stateMarket);
+                        renderShareVsGrowth(this.projections, this.activeSeries, this.stateMarket);
+                        renderPortfolioBalance(this.stateMarket);
+                        renderSupplyTrajectory(this.projections, this.activeSeries, this.stateMarket);
                         renderForecastHeroCards(this.projections, this.portfolio, this.activeSeries, this.stateMarket);
                         renderForecastTable(this.projections, this.portfolio, this.activeSeries, this.stateMarket);
                     }
