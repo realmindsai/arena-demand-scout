@@ -1,0 +1,19 @@
+{
+  "as_at": "2025-12-31",
+  "source": "Arena REIT HY2026 Results Presentation, 11 February 2026",
+  "states": {
+    "QLD": {"centres": 88, "valuation_m": 586.9, "metro_pct": 72, "development_pipeline": 0},
+    "VIC": {"centres": 85, "valuation_m": 501.9, "metro_pct": 72, "development_pipeline": 0},
+    "NSW": {"centres": 39, "valuation_m": 228.7, "metro_pct": 72, "development_pipeline": 0},
+    "WA":  {"centres": 27, "valuation_m": 135.4, "metro_pct": 72, "development_pipeline": 0},
+    "SA":  {"centres": 25, "valuation_m": 168.8, "metro_pct": 72, "development_pipeline": 0},
+    "TAS": {"centres": 8,  "valuation_m": 40.8,  "metro_pct": 72, "development_pipeline": 0},
+    "NT":  {"centres": 2,  "valuation_m": 6.7,   "metro_pct": 72, "development_pipeline": 0},
+    "ACT": {"centres": 0,  "valuation_m": 0,     "metro_pct": 0,  "development_pipeline": 0}
+  },
+  "national": {
+    "total_centres": 274,
+    "total_valuation_m": 1669.1,
+    "development_pipeline": 29
+  }
+}
